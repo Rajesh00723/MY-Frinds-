@@ -1,0 +1,166 @@
+ <!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Party Sync - Beatsync जैसा</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        input, button { padding: 10px; margin: 10px; font-size: 16px; }
+        #room { display: none; }
+        #users { list-style: none; padding: 0; }
+        #users li { background: #1f1f1f; margin: 5px; padding: 10px; border-radius: 5px; }
+        #player { width: 100%; height: 300px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 My Party Sync</h1>
+        <p>Beatsync जैसा – दोस्तों के साथ म्यूजिक सिंक प्ले करें!</p>
+        
+        <!-- होस्ट सेक्शन -->
+        <div id="host">
+            <h2>रूम बनाएं</h2>
+            <input type="text" id="hostName" placeholder="आपका नाम (होस्ट)" required>
+            <br>
+            <button onclick="createRoom()">रूम क्रिएट करें</button>
+        </div>
+        
+        <!-- रूम सेक्शन -->
+        <div id="room">
+            <h2 id="roomTitle">रूम: <span id="roomId"></span></h2>
+            <p>इनवाइट लिंक: <input type="text" id="inviteLink" readonly style="width: 300px;"></p>
+            
+            <!-- यूजर्स लिस्ट -->
+            <h3>दोस्तों की लिस्ट:</h3>
+            <ul id="users"></ul>
+            
+            <!-- दोस्त ऐड (गेस्ट के लिए) -->
+            <input type="text" id="guestName" placeholder="आपका नाम डालें">
+            <button onclick="addUser()">जॉइन करें</button>
+            
+            <!-- म्यूजिक प्लेयर -->
+            <h3>म्यूजिक सिंक (YouTube URL पेस्ट करें)</h3>
+            <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=VIDEO_ID">
+            <br>
+            <button onclick="loadVideo()">लोड करें</button>
+            <button onclick="playSync()">सभी पर प्ले (सिंक)</button>
+            <button onclick="pauseSync()">पॉज</button>
+            <div id="player"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentRoom = null;
+        let users = JSON.parse(localStorage.getItem('partyUsers')) || [];
+        let player;
+
+        // रूम क्रिएट
+        function createRoom() {
+            const hostName = document.getElementById('hostName').value;
+            if (!hostName) return alert('नाम डालें!');
+            
+            currentRoom = Math.random().toString(36).substring(7);
+            users = [hostName];
+            localStorage.setItem('partyUsers', JSON.stringify(users));
+            updateUI();
+            document.getElementById('host').style.display = 'none';
+            document.getElementById('room').style.display = 'block';
+            document.getElementById('roomId').textContent = currentRoom;
+            document.getElementById('inviteLink').value = `${window.location.href}?room=${currentRoom}`;
+        }
+
+        // URL से रूम जॉइन (ऑटो)
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentRoom = urlParams.get('room');
+            if (currentRoom) {
+                document.getElementById('host').style.display = 'none';
+                document.getElementById('room').style.display = 'block';
+                document.getElementById('roomId').textContent = currentRoom;
+                document.getElementById('inviteLink').value = `${window.location.href}?room=${currentRoom}`;
+                loadUsers();
+            }
+        };
+
+        // यूजर ऐड
+        function addUser() {
+            const name = document.getElementById('guestName').value;
+            if (!name) return alert('नाम डालें!');
+            if (users.includes(name)) return alert('ये नाम पहले से है!');
+            
+            users.push(name);
+            localStorage.setItem('partyUsers', JSON.stringify(users));
+            document.getElementById('guestName').value = '';
+            updateUsersList();
+        }
+
+        // यूजर्स अपडेट
+        function updateUsersList() {
+            const list = document.getElementById('users');
+            list.innerHTML = '';
+            users.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = `👤 ${user}`;
+                list.appendChild(li);
+            });
+        }
+
+        function loadUsers() {
+            updateUsersList();
+        }
+
+        function updateUI() {
+            loadUsers();
+        }
+
+        // YouTube प्लेयर लोड (API से)
+        function loadVideo() {
+            const url = document.getElementById('youtubeUrl').value;
+            if (!url) return alert('YouTube URL डालें!');
+            
+            // सिंपल एम्बेड
+            const videoId = url.split('v=')[1]?.split('&')[0];
+            document.getElementById('player').innerHTML = `
+                <iframe id="ytplayer" width="100%" height="300" src="https://www.youtube.com/embed/${videoId}?enablejsapi=1" frameborder="0" allowfullscreen></iframe>
+            `;
+            player = new YT.Player('ytplayer', {
+                events: { onReady: onPlayerReady }
+            });
+        }
+
+        function onPlayerReady(event) {
+            // रेडी
+        }
+
+        // सिंक प्ले (सभी पर – अभी सिम्पल, रियल सिंक के लिए सर्वर चाहिए)
+        function playSync() {
+            if (player) player.playVideo();
+            alert('सभी डिवाइस पर प्ले हो गया! (सिंक के लिए एक ही टाइम पर ओपन करें)');
+        }
+
+        function pauseSync() {
+            if (player) player.pauseVideo();
+            alert('सभी पर पॉज!');
+        }
+
+        // लोकल स्टोरेज से लोड
+        function loadUsers() {
+            const saved = localStorage.getItem(`partyUsers_${currentRoom}`) || '[]';
+            users = JSON.parse(saved);
+            updateUsersList();
+        }
+
+        // सेव (ऑटो सेव)
+        setInterval(() => {
+            if (currentRoom) {
+                localStorage.setItem(`partyUsers_${currentRoom}`, JSON.stringify(users));
+            }
+        }, 5000);
+    </script>
+
+    <!-- YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
